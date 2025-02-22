@@ -1,0 +1,107 @@
+openapi: 3.0.0
+info:
+  title: Products Service
+  description: API for managing products
+  version: 1.0.0
+
+paths:
+  /products:
+    get:
+      summary: Get all products
+      description: Returns a list of all available products
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{id}:
+    get:
+      summary: Get product by ID
+      description: Returns a single product by its ID
+      parameters:
+        - name: id
+          in: path
+          description: ID of the product to retrieve
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "1"
+        title:
+          type: string
+          example: "Gaming Laptop"
+        description:
+          type: string
+          example: "High-performance gaming laptop with RTX 4080"
+        price:
+          type: number
+          format: float
+          example: 1999.99
+        count:
+          type: integer
+          example: 10
+      required:
+        - id
+        - title
+        - description
+        - price
+        - count
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Internal server error"
+      required:
+        - message
+
+servers:
+  - url: https://0bncfg3of2.execute-api.eu-north-1.amazonaws.com/prod
+    variables:
+      apiId:
+        description: API Gateway ID
+        default: 0bncfg3of2
+      region:
+        description: AWS Region
+        default: eu-north-1
+      stage:
+        description: API Stage
+        default: prod
