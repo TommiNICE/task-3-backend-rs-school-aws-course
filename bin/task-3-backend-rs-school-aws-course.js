@@ -38,23 +38,37 @@ class Task3BackendRsSchoolAwsCourseStack extends cdk.Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
 
-    // Lambda function
+    // Create Lambda functions
     const getProductsFunction = new lambda.Function(this, 'GetProductsFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.getProductsList',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
-        PRODUCTS: JSON.stringify(products) // Pass products as environment variable
+        PRODUCTS: JSON.stringify(products)
       }
     });
 
-    // API Gateway
+    const getProductsByIdFunction = new lambda.Function(this, 'GetProductsByIdFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.getProductsById',
+      code: lambda.Code.fromAsset('lambda'),
+      environment: {
+        PRODUCTS: JSON.stringify(products)
+      }
+    });
+
+    // Create API Gateway
     const api = new apigateway.RestApi(this, 'ProductsApi', {
       restApiName: 'Products Service'
     });
 
+    // Add resources and methods
     const productsResource = api.root.addResource('products');
     productsResource.addMethod('GET', new apigateway.LambdaIntegration(getProductsFunction));
+
+    // Add product by ID endpoint
+    const productByIdResource = productsResource.addResource('{id}');
+    productByIdResource.addMethod('GET', new apigateway.LambdaIntegration(getProductsByIdFunction));
   }
 }
 
