@@ -7,23 +7,34 @@ This project implements a serverless product API using AWS services. The infrast
 - **AWS Lambda Functions**:
   - `getProductsList`: Returns all available products
   - `getProductsById`: Returns a specific product by ID
+  - `createProduct`: Create new product entry
 - **API Gateway**: RESTful API endpoints
 - **Authentication**: AWS SSO (Single Sign-On)
+- **DynamoDB**: Two tables for storing product data and stock information
 
 ## API Endpoints
 - GET `/products` - Retrieve all products
 - GET `/products/{id}` - Retrieve a specific product by ID
+- POST `/products`- Create new product entry
 
 ## Product Schema
+### Products table
 ```json
 {
   "id": "string",
   "title": "string",
   "description": "string",
   "price": "number",
-  "count": "integer"
 }
 ```
+### Stocks table
+```json
+{
+  "productId": "string",
+  "stocks": "number"
+}
+```
+
 ## Prerequisites
 * Node.js v20.x or later
 * AWS CLI configured with SSO
@@ -33,9 +44,11 @@ This project implements a serverless product API using AWS services. The infrast
 ```
 task-3-backend-rs-school-aws-course/
 ├── bin/
-│   └── task-3-backend-rs-school-aws-course.js
+│   └── task-4-backend-rs-school-aws-course.js
 ├── lambda/
 │   └── index.js
+├── lib/
+│   └── MyStack.js
 ├── cdk.json
 ├── package.json
 ├── README.md
@@ -88,13 +101,8 @@ The API includes CORS headers to allow cross-origin requests with the following 
 
 * Access-Control-Allow-Credentials: true
 
-## Environment Variables
-The Lambda functions use the following environment variables:
-
-* PRODUCTS - JSON string containing product data
-
 ## License
 This project is part of the RS School AWS Developer Course.
 
 ## API URL
-https://sav7k3rrw0.execute-api.eu-north-1.amazonaws.com/prod/products/
+https://34gbyo6wre.execute-api.eu-north-1.amazonaws.com/prod/products/
