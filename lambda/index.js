@@ -164,8 +164,8 @@ exports.createProduct = async (event) => {
     // Parse the request body
     const requestBody = JSON.parse(event.body);
     
-    // Validate required fields
-    if (!requestBody.title || !requestBody.description || !requestBody.price) {
+    // Validate required fields exist
+    if (!requestBody.title || !requestBody.description || requestBody.price === undefined) {
       return {
         statusCode: 400,
         headers: {
@@ -179,6 +179,60 @@ exports.createProduct = async (event) => {
       };
     }
     
+    // Validate field types
+    const validationErrors = [];
+    
+    // Validate title is a string
+    if (typeof requestBody.title !== 'string') {
+      validationErrors.push('Title must be a string');
+    }
+    
+    // Validate description is a string
+    if (typeof requestBody.description !== 'string') {
+      validationErrors.push('Description must be a string');
+    }
+    
+    // Validate price is a number
+    if (typeof requestBody.price !== 'number' || isNaN(requestBody.price)) {
+      validationErrors.push('Price must be a number');
+    }
+    
+    // Validate count is a number if provided
+    if (requestBody.count !== undefined && (typeof requestBody.count !== 'number' || isNaN(requestBody.count) || !Number.isInteger(requestBody.count))) {
+      validationErrors.push('Count must be an integer number');
+    }
+    
+    // Return validation errors if any
+    if (validationErrors.length > 0) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true
+        },
+        body: JSON.stringify({ 
+          message: 'Validation failed',
+          errors: validationErrors
+        })
+      };
+    }
+    
+    // Additional business rules validation
+    if (requestBody.price <= 0) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true
+        },
+        body: JSON.stringify({ 
+          message: 'Price must be greater than zero'
+        })
+      };
+    }
+    
     // Generate a unique ID for the product
     const productId = uuidv4();
     
@@ -188,6 +242,8 @@ exports.createProduct = async (event) => {
       title: requestBody.title,
       description: requestBody.description,
       price: requestBody.price,
+      // Add any other product-specific fields from the request
+      ...(requestBody.image && typeof requestBody.image === 'string' && { image: requestBody.image })
     };
     
     // Save the product to the DynamoDB table
@@ -228,6 +284,21 @@ exports.createProduct = async (event) => {
     };
   } catch (error) {
     console.error('Error creating product:', error);
+    
+    // Handle JSON parsing errors specifically
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true
+        },
+        body: JSON.stringify({ 
+          message: 'Invalid JSON in request body'
+        })
+      };
+    }
     
     return {
       statusCode: 500,
