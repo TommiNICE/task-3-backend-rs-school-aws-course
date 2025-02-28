@@ -1,4 +1,4 @@
-# Task 3 of AWS Developer Course by RS School
+# Task 4 of AWS Developer Course by RS School
 
 ## Description
 This project implements a serverless product API using AWS services. The infrastructure is defined using AWS CDK and consists of Lambda functions and API Gateway endpoints for managing product information.
