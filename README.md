@@ -95,3 +95,6 @@ The Lambda functions use the following environment variables:
 
 ## License
 This project is part of the RS School AWS Developer Course.
+
+## API URL
+https://sav7k3rrw0.execute-api.eu-north-1.amazonaws.com/prod/products/

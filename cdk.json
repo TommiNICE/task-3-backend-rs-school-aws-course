@@ -1,5 +1,5 @@
 {
-  "app": "node bin/task-3-backend-rs-school-aws-course.js",
+  "app": "node bin/task-4-backend-rs-school-aws-course.js",
   "watch": {
     "include": [
       "**"
