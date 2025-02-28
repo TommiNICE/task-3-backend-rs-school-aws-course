@@ -8,67 +8,78 @@ const {
   PutCommand
 } = require("@aws-sdk/lib-dynamodb");
 const { fromSSO } = require("@aws-sdk/credential-provider-sso");
+const { v4: uuidv4 } = require("uuid");
 
 // Initialize the DynamoDB client
 const client = new DynamoDBClient({ 
   region: "eu-north-1",
   credentials: fromSSO({ profile: "dev_tom" }) // Use your SSO profile name
-});const docClient = DynamoDBDocumentClient.from(client);
+});
+const docClient = DynamoDBDocumentClient.from(client);
 
-// Mock data for products
+// Generate UUIDs for products
+const productIds = [
+  uuidv4(),
+  uuidv4(),
+  uuidv4(),
+  uuidv4(),
+  uuidv4()
+];
+
+// Mock data for products with UUID IDs
 const productsMockData = [
   {
-    id: "prod-1",
+    id: productIds[0],
     title: "Gaming Laptop",
     description: "High-performance gaming laptop with RTX 4080",
     price: 1999.99
   },
   {
-    id: "prod-2",
+    id: productIds[1],
     title: "Wireless Headphones",
     description: "Noise-cancelling Bluetooth headphones",
     price: 249.99
   },
   {
-    id: "prod-3",
+    id: productIds[2],
     title: "Mechanical Keyboard",
     description: "RGB mechanical keyboard with Cherry MX switches",
     price: 159.99
   },
   {
-    id: "prod-4",
+    id: productIds[3],
     title: "Ultra-wide Monitor",
     description: "34-inch curved gaming monitor, 144Hz",
     price: 499.99
   },
   {
-    id: "prod-5",
+    id: productIds[4],
     title: "Wireless Mouse",
     description: "Ergonomic wireless gaming mouse with adjustable DPI",
     price: 89.99
   }
 ];
 
-// Mock data for stocks (referencing products by ID)
+// Mock data for stocks (referencing products by UUID)
 const stocksMockData = [
   {
-    productId: "prod-1",
+    productId: productIds[0],
     stock: 15
   },
   {
-    productId: "prod-2",
+    productId: productIds[1],
     stock: 42
   },
   {
-    productId: "prod-3",
+    productId: productIds[2],
     stock: 30
   },
   {
-    productId: "prod-4",
+    productId: productIds[3],
     stock: 7
   },
   {
-    productId: "prod-5",
+    productId: productIds[4],
     stock: 22
   }
 ];
