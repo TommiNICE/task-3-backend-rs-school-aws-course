@@ -4,14 +4,14 @@ const { PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const s3Client = new S3Client({});
 
-exports.handler = async (event) => {
+const importProductsFile =  async (event) => {
     console.log('Event:', JSON.stringify(event));
     
     try {
         // Validate input
         if (!event.queryStringParameters?.name) {
             return formatResponse(400, {
-                message: 'Missing required query parameter: name'
+                message: "File name is required"
             });
         }
 
@@ -19,7 +19,7 @@ exports.handler = async (event) => {
         
         if (!fileName.endsWith('.csv')) {
             return formatResponse(400, {
-                message: 'File must be a CSV'
+                message: "Only CSV files are allowed"
             });
         }
 
@@ -53,3 +53,8 @@ const formatResponse = (statusCode, body) => ({
     },
     body: JSON.stringify(body)
 });
+
+
+module.exports = {
+    handler: importProductsFile
+};

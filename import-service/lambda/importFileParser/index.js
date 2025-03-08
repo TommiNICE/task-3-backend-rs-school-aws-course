@@ -4,7 +4,7 @@ const { Readable } = require('stream');
 
 const s3Client = new S3Client({});
 
-exports.handler = async (event) => {
+const importFileParser = async (event) => {
     console.log('ImportFileParser called with event:', JSON.stringify(event, null, 2));
 
     try {
@@ -54,4 +54,8 @@ exports.handler = async (event) => {
         console.error('Error processing file:', error);
         throw error;
     }
+};
+
+module.exports = {
+    handler: importFileParser
 };
