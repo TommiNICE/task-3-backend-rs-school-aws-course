@@ -1,13 +1,59 @@
-const { Stack } = require('aws-cdk-lib');
+const { Stack, Duration } = require('aws-cdk-lib');
 const lambda = require('aws-cdk-lib/aws-lambda');
 const apigateway = require('aws-cdk-lib/aws-apigateway');
 const iam = require('aws-cdk-lib/aws-iam');
 const path = require('path');
+const sqs = require('aws-cdk-lib/aws-sqs');
+const { SqsEventSource } = require('aws-cdk-lib/aws-lambda-event-sources');
 const { NodejsFunction } = require('aws-cdk-lib/aws-lambda-nodejs');
 
 class MyStack extends Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
+
+    // Create SQS Queue
+    const catalogItemsQueue = new sqs.Queue(this, 'CatalogItemsQueue', {
+      queueName: 'catalogItemsQueue',
+      visibilityTimeout: Duration.seconds(30), // Should be greater than Lambda timeout
+    });
+
+    // Create catalogBatchProcess Lambda
+    const catalogBatchProcessFunction = new NodejsFunction(this, 'CatalogBatchProcessFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, '../lambda/catalogBatchProcess/index.js'),
+      handler: 'catalogBatchProcess',
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        externalModules: ['aws-sdk'],
+      }
+    }); 
+
+    // Add SQS trigger to Lambda with batch size of 5
+    catalogBatchProcessFunction.addEventSource(new SqsEventSource(catalogItemsQueue, {
+      batchSize: 5,
+    }));
+
+    // Add permissions for the Lambda to access SQS and DynamoDB
+    catalogBatchProcessFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'sqs:ReceiveMessage',
+        'sqs:DeleteMessage',
+        'sqs:GetQueueAttributes'
+      ],
+      resources: [catalogItemsQueue.queueArn]
+    }));
+
+    catalogBatchProcessFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'dynamodb:PutItem',
+        'dynamodb:BatchWriteItem'
+      ],
+      resources: [
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/products`,
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/stocks`
+      ]
+    }));
 
     // Create Lambda function for getting products using NodejsFunction
     const getProductsFunction = new NodejsFunction(this, 'GetProductsFunction', {
