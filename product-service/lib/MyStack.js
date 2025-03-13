@@ -12,7 +12,7 @@ class MyStack extends Stack {
     // Create Lambda function for getting products using NodejsFunction
     const getProductsFunction = new NodejsFunction(this, 'GetProductsFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '../lambda/index.js'),
+      entry: path.join(__dirname, '../lambda/getProductsList/index.js'),
       handler: 'getProductsList',
       bundling: {
         externalModules: [], // Bundle all modules
@@ -35,7 +35,7 @@ class MyStack extends Stack {
     // Create Lambda function for getting product by ID
     const getProductByIdFunction = new NodejsFunction(this, 'GetProductByIdFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '../lambda/index.js'),
+      entry: path.join(__dirname, '../lambda/getProductById/index.js'),
       handler: 'getProductById',
       bundling: {
         externalModules: [], // Bundle all modules
@@ -57,7 +57,7 @@ class MyStack extends Stack {
     // Create Lambda function for creating products
     const createProductFunction = new NodejsFunction(this, 'CreateProductFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '../lambda/index.js'),
+      entry: path.join(__dirname, '../lambda/createProduct/index.js'),
       handler: 'createProduct',
       bundling: {
         externalModules: [], // Bundle all modules
