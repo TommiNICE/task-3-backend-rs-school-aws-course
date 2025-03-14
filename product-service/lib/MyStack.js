@@ -14,28 +14,28 @@ class MyStack extends Stack {
     // Create SQS Queue
     const catalogItemsQueue = new sqs.Queue(this, 'CatalogItemsQueue', {
       queueName: 'catalogItemsQueue',
-      visibilityTimeout: Duration.seconds(30), // Should be greater than Lambda timeout
+      visibilityTimeout: Duration.seconds(30), // Should match Lambda timeout
     });
-
+    
     // Create catalogBatchProcess Lambda
-    const catalogBatchProcessFunction = new NodejsFunction(this, 'CatalogBatchProcessFunction', {
+    const catalogBatchProcess = new lambda.Function(this, 'CatalogBatchProcess', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '../lambda/catalogBatchProcess/index.js'),
-      handler: 'catalogBatchProcess',
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        externalModules: ['aws-sdk'],
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/catalogBatchProcess'),
+      timeout: Duration.seconds(30),
+      environment: {
+        PRODUCTS_TABLE: 'products',
+        STOCKS_TABLE: 'stocks'
       }
     }); 
 
-    // Add SQS trigger to Lambda with batch size of 5
-    catalogBatchProcessFunction.addEventSource(new SqsEventSource(catalogItemsQueue, {
-      batchSize: 5,
+    // Add SQS trigger to Lambda
+    catalogBatchProcess.addEventSource(new SqsEventSource(catalogItemsQueue, {
+      batchSize: 5
     }));
 
     // Add permissions for the Lambda to access SQS and DynamoDB
-    catalogBatchProcessFunction.addToRolePolicy(new iam.PolicyStatement({
+    catalogBatchProcess.addToRolePolicy(new iam.PolicyStatement({
       actions: [
         'sqs:ReceiveMessage',
         'sqs:DeleteMessage',
@@ -44,7 +44,7 @@ class MyStack extends Stack {
       resources: [catalogItemsQueue.queueArn]
     }));
 
-    catalogBatchProcessFunction.addToRolePolicy(new iam.PolicyStatement({
+    catalogBatchProcess.addToRolePolicy(new iam.PolicyStatement({
       actions: [
         'dynamodb:PutItem',
         'dynamodb:BatchWriteItem'
@@ -54,7 +54,6 @@ class MyStack extends Stack {
         `arn:aws:dynamodb:${this.region}:${this.account}:table/stocks`
       ]
     }));
-
     // Create Lambda function for getting products using NodejsFunction
     const getProductsFunction = new NodejsFunction(this, 'GetProductsFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
