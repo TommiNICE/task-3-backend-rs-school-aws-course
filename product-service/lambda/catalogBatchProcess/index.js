@@ -1,11 +1,17 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+const { fromSSO } = require('@aws-sdk/credential-provider-sso');
 const { v4: uuidv4 } = require('uuid');
 
-const dynamoClient = new DynamoDBClient();
+const config = {
+  region: process.env.AWS_REGION || 'eu-north-1',
+  credentials: process.env.AWS_LAMBDA_FUNCTION_NAME ? undefined : fromSSO()
+};
+
+const dynamoClient = new DynamoDBClient(config);
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const snsClient = new SNSClient();
+const snsClient = new SNSClient(config);
 
 exports.handler = async (event) => {
   try {
