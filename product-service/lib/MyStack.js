@@ -1,20 +1,32 @@
 const { Stack, Duration } = require('aws-cdk-lib');
+const path = require('path'); 
 const lambda = require('aws-cdk-lib/aws-lambda');
+const { NodejsFunction } = require('aws-cdk-lib/aws-lambda-nodejs');
 const apigateway = require('aws-cdk-lib/aws-apigateway');
 const iam = require('aws-cdk-lib/aws-iam');
-const path = require('path');
 const sqs = require('aws-cdk-lib/aws-sqs');
+const sns = require('aws-cdk-lib/aws-sns');
+const snsSubs = require('aws-cdk-lib/aws-sns-subscriptions');
 const { SqsEventSource } = require('aws-cdk-lib/aws-lambda-event-sources');
-const { NodejsFunction } = require('aws-cdk-lib/aws-lambda-nodejs');
 
 class MyStack extends Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
 
+    // Create SNS Topic
+    const createProductTopic = new sns.Topic(this, 'CreateProductTopic', {
+      topicName: 'create-product-topic'
+    });
+
+    // Add email subscription
+    createProductTopic.addSubscription(
+      new snsSubs.EmailSubscription('tomislavvarga37@gmail.com')
+    );
+
     // Create SQS Queue
     const catalogItemsQueue = new sqs.Queue(this, 'CatalogItemsQueue', {
       queueName: 'catalogItemsQueue',
-      visibilityTimeout: Duration.seconds(30), // Should match Lambda timeout
+      visibilityTimeout: Duration.seconds(30),
     });
     
     // Create catalogBatchProcess Lambda
@@ -25,7 +37,8 @@ class MyStack extends Stack {
       timeout: Duration.seconds(30),
       environment: {
         PRODUCTS_TABLE: 'products',
-        STOCKS_TABLE: 'stocks'
+        STOCKS_TABLE: 'stocks',
+        SNS_TOPIC_ARN: createProductTopic.topicArn
       }
     }); 
 
@@ -44,18 +57,26 @@ class MyStack extends Stack {
       resources: [catalogItemsQueue.queueArn]
     }));
 
+    // Add DynamoDB permissions
     catalogBatchProcess.addToRolePolicy(new iam.PolicyStatement({
       actions: [
         'dynamodb:PutItem',
-        'dynamodb:BatchWriteItem'
+        'dynamodb:TransactWriteItems'
       ],
       resources: [
         `arn:aws:dynamodb:${this.region}:${this.account}:table/products`,
         `arn:aws:dynamodb:${this.region}:${this.account}:table/stocks`
       ]
     }));
-    // Create Lambda function for getting products using NodejsFunction
-    const getProductsFunction = new NodejsFunction(this, 'GetProductsFunction', {
+
+    // Add SNS publish permissions
+    catalogBatchProcess.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [createProductTopic.topicArn]
+    }));
+
+    // Create Lambda function for getting products list
+    const getProductsList = new NodejsFunction(this, 'GetProductsList', {
       runtime: lambda.Runtime.NODEJS_20_X,
       entry: path.join(__dirname, '../lambda/getProductsList/index.js'),
       handler: 'getProductsList',
@@ -64,12 +85,10 @@ class MyStack extends Stack {
       },
     });
 
-    // Add DynamoDB permissions for getProducts
-    getProductsFunction.addToRolePolicy(new iam.PolicyStatement({
+    // Add DynamoDB permissions for getProductsList
+    getProductsList.addToRolePolicy(new iam.PolicyStatement({
       actions: [
-        'dynamodb:Scan',
-        'dynamodb:GetItem',
-        'dynamodb:BatchGetItem'
+        'dynamodb:Scan'
       ],
       resources: [
         `arn:aws:dynamodb:${this.region}:${this.account}:table/products`,
@@ -134,7 +153,7 @@ class MyStack extends Stack {
     const productsResource = api.root.addResource('products');
     
     // GET /products - List all products
-    productsResource.addMethod('GET', new apigateway.LambdaIntegration(getProductsFunction));
+    productsResource.addMethod('GET', new apigateway.LambdaIntegration(getProductsList));
     
     // POST /products - Create a new product
     productsResource.addMethod('POST', new apigateway.LambdaIntegration(createProductFunction));

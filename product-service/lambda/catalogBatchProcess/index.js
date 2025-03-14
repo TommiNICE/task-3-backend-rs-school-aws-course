@@ -1,9 +1,11 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
+const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
 const { v4: uuidv4 } = require('uuid');
 
 const dynamoClient = new DynamoDBClient();
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const snsClient = new SNSClient();
 
 exports.handler = async (event) => {
   try {
@@ -12,16 +14,13 @@ exports.handler = async (event) => {
     for (const record of event.Records) {
       const item = JSON.parse(record.body);
       
-      // Generate a new UUID for the product
       const productId = uuidv4();
 
-      // Validate required fields
       if (!item.title || !item.price || !item.count) {
         console.error('Missing required fields:', item);
         continue;
       }
 
-      // Ensure price and count are numbers
       const price = Number(item.price);
       const count = Number(item.count);
 
@@ -48,7 +47,7 @@ exports.handler = async (event) => {
             Put: {
               TableName: process.env.STOCKS_TABLE,
               Item: {
-                productId: productId,  // Changed from product_id to productId
+                productId: productId,
                 count: count
               }
             }
@@ -58,7 +57,30 @@ exports.handler = async (event) => {
 
       // Execute transaction
       await docClient.send(transactCommand);
-      console.log(`Successfully processed product: ${productId}`);
+      
+      // Publish to SNS
+      const publishCommand = new PublishCommand({
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Message: JSON.stringify({
+          message: 'Product created successfully',
+          product: {
+            id: productId,
+            title: item.title,
+            description: item.description || 'No description provided',
+            price: price,
+            count: count
+          }
+        }),
+        MessageAttributes: {
+          price: {
+            DataType: 'Number',
+            StringValue: price.toString()
+          }
+        }
+      });
+
+      await snsClient.send(publishCommand);
+      console.log(`Successfully processed and notified for product: ${productId}`);
     }
 
     return {
