@@ -4,12 +4,24 @@ const apigateway = require('aws-cdk-lib/aws-apigateway');
 const iam = require('aws-cdk-lib/aws-iam');
 const s3 = require('aws-cdk-lib/aws-s3');
 const s3n = require('aws-cdk-lib/aws-s3-notifications');
+const sqs = require('aws-cdk-lib/aws-sqs');
 
 require('dotenv').config();
 
 class ImportServiceStack extends Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
+
+    if (!process.env.CATALOG_ITEMS_QUEUE_ARN) {
+      throw new Error('CATALOG_ITEMS_QUEUE_ARN environment variable is required');
+    }
+
+    // Reference existing SQS queue using environment variable
+    const catalogItemsQueue = sqs.Queue.fromQueueArn(
+      this, 
+      'CatalogItemsQueue',
+      process.env.CATALOG_ITEMS_QUEUE_ARN
+    );
 
     // CloudWatch Logs Role
     const apiGatewayLogsRole = new iam.Role(this, 'ApiGatewayLogsRole', {
@@ -106,13 +118,11 @@ class ImportServiceStack extends Stack {
     const importFileParser = new lambda.Function(this, 'ImportFileParser', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/importFileParser',),
-      timeout: Duration.seconds(30),
-      memorySize: 256,
+      code: lambda.Code.fromAsset('lambda/importFileParser'),
       environment: {
-        BUCKET_NAME: process.env.BUCKET
+        QUEUE_URL: catalogItemsQueue.queueUrl
       }
-    });
+    });    
 
     // Add S3 permissions for importFileParser
     importFileParser.addToRolePolicy(new iam.PolicyStatement({
@@ -126,6 +136,12 @@ class ImportServiceStack extends Stack {
         `arn:aws:s3:::${process.env.BUCKET}/*`
       ]
     }));
+
+    importFileParser.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['sqs:SendMessage', 'sqs:SendMessageBatch'],
+      resources: [catalogItemsQueue.queueArn]
+    }));    
 
     // Add S3 notification for the importFileParser Lambda
     const notification = new s3n.LambdaDestination(importFileParser);
