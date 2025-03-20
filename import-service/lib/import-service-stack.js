@@ -18,7 +18,7 @@ class ImportServiceStack extends Stack {
 
     // Reference existing SQS queue using environment variable
     const catalogItemsQueue = sqs.Queue.fromQueueArn(
-      this, 
+      this,
       'CatalogItemsQueue',
       process.env.CATALOG_ITEMS_QUEUE_ARN
     );
@@ -56,6 +56,21 @@ class ImportServiceStack extends Stack {
       memorySize: 256
     });
 
+    // Reference the existing basicAuthorizer Lambda function
+    const basicAuthorizer = lambda.Function.fromFunctionArn(
+      this,
+      'BasicAuthorizer',
+      process.env.AUTHORIZER_LAMBDA_ARN
+    );
+
+    // Create the Lambda authorizer
+    const authorizer = new apigateway.RequestAuthorizer(this, 'ImportApiAuthorizer', {
+      handler: basicAuthorizer,
+      identitySources: [apigateway.IdentitySource.header('Authorization')],
+      resultsCacheTtl: Duration.seconds(0),
+      authorizerResultTtl: Duration.seconds(0)
+    });
+
     // S3 permissions
     importProductsFile.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -74,7 +89,7 @@ class ImportServiceStack extends Stack {
     const api = new apigateway.RestApi(this, 'ImportApi', {
       restApiName: 'Import Service',
       deployOptions: {
-        stageName: 'prod',
+        stageName: 'dev',
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         dataTraceEnabled: true,
         metricsEnabled: true
@@ -91,30 +106,34 @@ class ImportServiceStack extends Stack {
     // Add /import endpoint
     const importResource = api.root.addResource('import');
 
-    // Add GET method
+    // Add method with proper response configuration
     importResource.addMethod('GET',
-      new apigateway.LambdaIntegration(importProductsFile, {
-        proxy: true,
-        integrationResponses: [{
+      new apigateway.LambdaIntegration(importProductsFile), {
+      authorizer: authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+      methodResponses: [
+        {
           statusCode: '200',
           responseParameters: {
-            'method.response.header.Access-Control-Allow-Origin': "'*'"
+            'method.response.header.Access-Control-Allow-Origin': true
           }
-        }]
-      }), {
-      requestParameters: {
-        'method.request.querystring.name': true
-      },
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true
+        },
+        {
+          statusCode: '401',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true
+          }
+        },
+        {
+          statusCode: '403',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true
+          }
         }
-      }]
+      ]
     }
     );
 
-    // Create the importFileParser Lambda
     const importFileParser = new lambda.Function(this, 'ImportFileParser', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
@@ -122,9 +141,8 @@ class ImportServiceStack extends Stack {
       environment: {
         QUEUE_URL: catalogItemsQueue.queueUrl
       }
-    });    
+    });
 
-    // Add S3 permissions for importFileParser
     importFileParser.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -141,21 +159,18 @@ class ImportServiceStack extends Stack {
       effect: iam.Effect.ALLOW,
       actions: ['sqs:SendMessage', 'sqs:SendMessageBatch'],
       resources: [catalogItemsQueue.queueArn]
-    }));    
+    }));
 
-    // Add S3 notification for the importFileParser Lambda
     const notification = new s3n.LambdaDestination(importFileParser);
 
-    // Add the notification configuration to the bucket
     bucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       notification,
       {
-        prefix: 'uploaded/', // Only trigger for objects in the uploaded/ prefix
-        suffix: '.csv' // Only trigger for .csv files
+        prefix: 'uploaded/',
+        suffix: '.csv'
       }
     );
-
   }
 }
 
