@@ -1,0 +1,22 @@
+{
+  "name": "authorization-service",
+  "version": "0.1.0",
+  "bin": {
+    "authorization-service": "bin/main.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
